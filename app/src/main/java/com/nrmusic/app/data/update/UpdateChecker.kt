@@ -5,7 +5,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.json.JSONObject
 
 sealed interface UpdateResult {
     data object UpToDate : UpdateResult
@@ -21,9 +20,11 @@ sealed interface UpdateResult {
 /**
  * Checks the app's own GitHub repo for a newer release.
  *
- * The repo is injected at build time (BuildConfig.GITHUB_REPO); GitHub Actions passes it
- * automatically, so installed CI builds know where to look with zero configuration.
- * CI tags each release `v<versionCode>`, so we compare the tag number to our own versionCode.
+ * Uses the plain github.com "/releases/latest" redirect (NOT api.github.com), because the
+ * unauthenticated API is limited to 60 requests/hour per IP and returns HTTP 403 on shared
+ * mobile networks. The redirect exposes the latest tag (e.g. .../releases/tag/v3); the CI
+ * names each tag `v<versionCode>` and each APK `NRMusic-v<versionCode>.apk`, so both the
+ * version and the download URL are derivable without the API.
  */
 object UpdateChecker {
 
@@ -36,32 +37,32 @@ object UpdateChecker {
         if (repo.isBlank()) return@withContext UpdateResult.Failed("No update source configured")
 
         runCatching {
+            val noRedirect = client.newBuilder().followRedirects(false).build()
             val req = Request.Builder()
-                .url("https://api.github.com/repos/$repo/releases/latest")
-                .header("Accept", "application/vnd.github+json")
+                .url("https://github.com/$repo/releases/latest")
+                .header("User-Agent", "NRMusic")
                 .build()
-            client.newCall(req).execute().use { resp ->
-                if (resp.code == 404) return@use UpdateResult.UpToDate // no releases yet
-                if (!resp.isSuccessful) return@use UpdateResult.Failed("HTTP ${resp.code}")
 
-                val json = JSONObject(resp.body?.string() ?: "{}")
-                val tag = json.optString("tag_name")
+            noRedirect.newCall(req).execute().use { resp ->
+                // 302 → Location: https://github.com/owner/repo/releases/tag/v3
+                // If there are no releases it redirects to .../releases (no "/tag/").
+                val location = resp.header("Location")
+                    ?: return@use UpdateResult.UpToDate
+                val tag = location.substringAfterLast("/tag/", "")
+                if (tag.isBlank()) return@use UpdateResult.UpToDate
+
                 val remoteCode = tag.filter { it.isDigit() }.toIntOrNull()
-                    ?: return@use UpdateResult.Failed("Bad release tag")
-                val notes = json.optString("body").take(500)
-                val versionName = json.optString("name").ifBlank { tag }
+                    ?: return@use UpdateResult.Failed("Unexpected release tag: $tag")
 
-                val apkUrl = json.optJSONArray("assets")?.let { assets ->
-                    (0 until assets.length())
-                        .map { assets.getJSONObject(it) }
-                        .firstOrNull { it.optString("name").endsWith(".apk", ignoreCase = true) }
-                        ?.optString("browser_download_url")
-                }
-
-                when {
-                    remoteCode <= BuildConfig.VERSION_CODE -> UpdateResult.UpToDate
-                    apkUrl.isNullOrBlank() -> UpdateResult.Failed("Release has no APK attached")
-                    else -> UpdateResult.Available(versionName, remoteCode, apkUrl, notes)
+                if (remoteCode <= BuildConfig.VERSION_CODE) {
+                    UpdateResult.UpToDate
+                } else {
+                    UpdateResult.Available(
+                        versionName = "1.0.$remoteCode",
+                        versionCode = remoteCode,
+                        apkUrl = "https://github.com/$repo/releases/download/$tag/NRMusic-$tag.apk",
+                        notes = ""
+                    )
                 }
             }
         }.getOrElse { UpdateResult.Failed(it.message ?: "Check failed") }
