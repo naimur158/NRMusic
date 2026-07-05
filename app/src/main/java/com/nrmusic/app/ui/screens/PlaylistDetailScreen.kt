@@ -114,7 +114,9 @@ fun PlaylistDetailScreen(
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        val art = playlist.coverUri ?: localTracks.firstOrNull()?.thumbnailUrl
+                        val art = com.nrmusic.app.ui.util.hiResArtwork(
+                            playlist.coverUri ?: localTracks.firstOrNull()?.thumbnailUrl
+                        )
                         if (art != null) {
                             AsyncImage(
                                 model = art,

@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
@@ -40,12 +41,16 @@ fun rememberAdaptiveColor(artworkUrl: String?, fallback: Color): State<Color> {
                 if (result is SuccessResult) {
                     val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
                         ?: return@runCatching fallback
-                    val palette = Palette.from(bitmap).generate()
-                    val swatch = palette.darkMutedSwatch
-                        ?: palette.darkVibrantSwatch
-                        ?: palette.mutedSwatch
+                    val palette = Palette.from(bitmap).maximumColorCount(24).generate()
+                    // Prefer saturated swatches so the tint clearly reads as the album's color.
+                    val swatch = palette.darkVibrantSwatch
+                        ?: palette.vibrantSwatch
                         ?: palette.dominantSwatch
-                    swatch?.let { Color(it.rgb) } ?: fallback
+                        ?: palette.darkMutedSwatch
+                        ?: palette.mutedSwatch
+                    val raw = swatch?.let { Color(it.rgb) } ?: fallback
+                    // Deepen it a touch so white text stays readable while keeping the hue vivid.
+                    lerp(raw, Color(0xFF0B0B0B), 0.30f)
                 } else fallback
             }.getOrDefault(fallback)
         }

@@ -136,7 +136,9 @@ fun CollectionScreen(
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        val art = coverUri ?: tracks.firstOrNull()?.thumbnailUrl
+                        val art = com.nrmusic.app.ui.util.hiResArtwork(
+                            coverUri ?: tracks.firstOrNull()?.thumbnailUrl
+                        )
                         if (art != null) {
                             AsyncImage(
                                 model = art,

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -103,6 +104,11 @@ fun NRMusicUi(player: PlayerConnection) {
     val online = rememberOnline()
 
     var currentTab by remember { mutableStateOf(Tab.Home) }
+
+    // Back from a non-Home tab returns to Home first (instead of exiting the app).
+    // Overlays register their own BackHandlers later, so they take priority when open.
+    BackHandler(enabled = currentTab != Tab.Home) { currentTab = Tab.Home }
+
     var showPlayer by remember { mutableStateOf(false) }
     var openCollection by remember { mutableStateOf<CollectionRef?>(null) }
     var remoteSpec by remember { mutableStateOf<RemoteSpec?>(null) }

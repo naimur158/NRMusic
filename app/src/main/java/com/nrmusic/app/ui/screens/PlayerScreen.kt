@@ -69,6 +69,7 @@ import coil.compose.AsyncImage
 import com.nrmusic.app.data.model.formatDuration
 import com.nrmusic.app.playback.PlayerConnection
 import com.nrmusic.app.ui.theme.DarkBackground
+import com.nrmusic.app.ui.util.hiResArtwork
 import com.nrmusic.app.ui.util.rememberAdaptiveColor
 import kotlin.math.abs
 import kotlinx.coroutines.delay
@@ -102,13 +103,19 @@ fun PlayerScreen(
         }
     }
 
+    val artworkHiRes = hiResArtwork(metadata?.artworkUri?.toString())
+
     // Background tints toward the artwork's dominant color.
     val targetColor by rememberAdaptiveColor(
-        metadata?.artworkUri?.toString(),
+        artworkHiRes,
         MaterialTheme.colorScheme.background
     )
     val bgColor by animateColorAsState(targetColor, label = "bg")
-    val brush = Brush.verticalGradient(listOf(bgColor, DarkBackground))
+    val brush = Brush.verticalGradient(
+        0.0f to bgColor,
+        0.45f to androidx.compose.ui.graphics.lerp(bgColor, DarkBackground, 0.55f),
+        1.0f to DarkBackground
+    )
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(modifier = Modifier.fillMaxSize().background(brush)) {
@@ -163,9 +170,9 @@ fun PlayerScreen(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                if (metadata?.artworkUri != null) {
+                if (artworkHiRes != null) {
                     AsyncImage(
-                        model = metadata.artworkUri,
+                        model = artworkHiRes,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()

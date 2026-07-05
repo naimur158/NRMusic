@@ -238,7 +238,12 @@ private fun RecentCard(track: Track, onClick: () -> Unit) {
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             track.thumbnailUrl?.let {
-                AsyncImage(it, null, contentScale = ContentScale.Crop, modifier = Modifier.size(120.dp))
+                AsyncImage(
+                    com.nrmusic.app.ui.util.hiResArtwork(it),
+                    null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(120.dp)
+                )
             }
         }
         Text(track.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1,
