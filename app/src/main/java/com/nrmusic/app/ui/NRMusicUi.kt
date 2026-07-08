@@ -9,6 +9,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -194,7 +198,13 @@ fun NRMusicUi(player: PlayerConnection) {
         },
         bottomBar = {
             Column {
-                if (player.hasTrack) MiniPlayer(player = player, onClick = { showPlayer = true })
+                AnimatedVisibility(
+                    visible = player.hasTrack,
+                    enter = slideInVertically { it } + fadeIn(),
+                    exit = slideOutVertically { it } + fadeOut()
+                ) {
+                    MiniPlayer(player = player, onClick = { showPlayer = true })
+                }
                 NavigationBar {
                     Tab.entries.forEach { tab ->
                         NavigationBarItem(
@@ -208,45 +218,48 @@ fun NRMusicUi(player: PlayerConnection) {
             }
         }
     ) { padding: PaddingValues ->
-        when (currentTab) {
-            Tab.Home -> HomeScreen(
-                state = state,
-                player = player,
-                contentPadding = padding,
-                actionsFor = actionsFor,
-                onGenreClick = { genre -> runSearchFor(state, scope, genre); currentTab = Tab.Search },
-                onOpenCollection = { openCollection = it }
-            )
+        // Gentle crossfade when switching tabs.
+        Crossfade(targetState = currentTab, animationSpec = tween(240), label = "tab") { tab ->
+            when (tab) {
+                Tab.Home -> HomeScreen(
+                    state = state,
+                    player = player,
+                    contentPadding = padding,
+                    actionsFor = actionsFor,
+                    onGenreClick = { genre -> runSearchFor(state, scope, genre); currentTab = Tab.Search },
+                    onOpenCollection = { openCollection = it }
+                )
 
-            Tab.Search -> SearchScreen(
-                state = state,
-                player = player,
-                contentPadding = padding,
-                actionsFor = actionsFor,
-                onOpenAlbum = { album ->
-                    remoteSpec = RemoteSpec(album.name) { YouTubeRepository.albumTracks(album.url) }
-                },
-                onOpenArtist = { artist ->
-                    remoteSpec = RemoteSpec(artist.name) { YouTubeRepository.artistSongs(artist.name) }
-                }
-            )
+                Tab.Search -> SearchScreen(
+                    state = state,
+                    player = player,
+                    contentPadding = padding,
+                    actionsFor = actionsFor,
+                    onOpenAlbum = { album ->
+                        remoteSpec = RemoteSpec(album.name) { YouTubeRepository.albumTracks(album.url) }
+                    },
+                    onOpenArtist = { artist ->
+                        remoteSpec = RemoteSpec(artist.name) { YouTubeRepository.artistSongs(artist.name) }
+                    }
+                )
 
-            Tab.Library -> LibraryScreen(
-                state = state,
-                library = library,
-                player = player,
-                contentPadding = padding,
-                actionsFor = actionsFor,
-                onOpen = { openCollection = it },
-                onCreatePlaylist = { pendingTracksForNewPlaylist = emptyList(); showCreatePlaylist = true }
-            )
+                Tab.Library -> LibraryScreen(
+                    state = state,
+                    library = library,
+                    player = player,
+                    contentPadding = padding,
+                    actionsFor = actionsFor,
+                    onOpen = { openCollection = it },
+                    onCreatePlaylist = { pendingTracksForNewPlaylist = emptyList(); showCreatePlaylist = true }
+                )
 
-            Tab.Settings -> SettingsScreen(
-                contentPadding = padding,
-                onOpenStorage = { showStorage = true },
-                onOpenStats = { showStats = true },
-                onCheckUpdates = { runUpdateCheck(manual = true) }
-            )
+                Tab.Settings -> SettingsScreen(
+                    contentPadding = padding,
+                    onOpenStorage = { showStorage = true },
+                    onOpenStats = { showStats = true },
+                    onCheckUpdates = { runUpdateCheck(manual = true) }
+                )
+            }
         }
     }
 
